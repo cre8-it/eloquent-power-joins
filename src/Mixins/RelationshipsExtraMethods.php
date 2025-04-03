@@ -372,10 +372,17 @@ class RelationshipsExtraMethods
                     $join->as($alias1);
                 }
 
+                $farParentTable = $this->getFarParent()->getTable();
+                $farParentAlias = StaticCache::getTableOrAliasForModel($this->getFarParent());
+                $qualifiedLocalKeyName = $this->getQualifiedLocalKeyName();
+                $aliasedLocalKeyName = $farParentAlias !== $farParentTable
+                    ? str_replace($farParentTable, $farParentAlias, $qualifiedLocalKeyName)
+                    : $qualifiedLocalKeyName;
+
                 $join->on(
                     "{$throughTable}.{$this->getFirstKeyName()}",
                     '=',
-                    $this->getQualifiedLocalKeyName()
+                    $aliasedLocalKeyName
                 );
 
                 if ($disableExtraConditions === false && $this->usesSoftDeletes($this->getThroughParent())) {
