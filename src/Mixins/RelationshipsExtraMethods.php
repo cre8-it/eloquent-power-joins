@@ -372,17 +372,10 @@ class RelationshipsExtraMethods
                     $join->as($alias1);
                 }
 
-                $farParentTable = $this->getFarParent()->getTable();
-                $farParentAlias = StaticCache::getTableOrAliasForModel($this->getFarParent());
-                $qualifiedLocalKeyName = $this->getQualifiedLocalKeyName();
-                $aliasedLocalKeyName = $farParentAlias !== $farParentTable
-                    ? str_replace($farParentTable, $farParentAlias, $qualifiedLocalKeyName)
-                    : $qualifiedLocalKeyName;
-
                 $join->on(
                     "{$throughTable}.{$this->getFirstKeyName()}",
                     '=',
-                    $aliasedLocalKeyName
+                    $this->getAliasedParentLocalKey()
                 );
 
                 if ($disableExtraConditions === false && $this->usesSoftDeletes($this->getThroughParent())) {
@@ -583,6 +576,29 @@ class RelationshipsExtraMethods
             if ($this instanceof MorphOneOrMany) {
                 return [$this->getQualifiedMorphType(), $this->getExistenceCompareKey()];
             }
+        };
+    }
+
+    /**
+     * Get a closure that returns the (possibly aliased) qualified local key name.
+     * Ensures the usage of correct join keys when through relationships are joined multiple times.
+     */
+    public function getAliasedParentLocalKey()
+    {
+        return function () {
+            $localKey = $this->getQualifiedLocalKeyName();
+            if ($this instanceof HasManyThrough || $this instanceof HasOneThrough) {
+                $farParent = $this->getFarParent();
+                $tableName = StaticCache::getTableOrAliasForModel($farParent);
+
+                $split = explode('.', $localKey);
+                if (count($split) > 1) {
+                    $split = array_map(fn($part) => $part === $farParent->getTable() ? $tableName : $part, $split);
+                    return implode('.', $split);
+                }
+                return "{$tableName}.{$localKey}";
+            }
+            return $localKey;
         };
     }
 }
